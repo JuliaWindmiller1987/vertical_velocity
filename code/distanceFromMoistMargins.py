@@ -4,6 +4,7 @@ import cartopy.crs as ccrs
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sb
 from edgeFinder import find_edges_numpy
 from plotUtils import plot_cwv_field, add_east_west_boxes
 
@@ -53,10 +54,12 @@ extent = [-65, -15, -5, 25]
 ax = plot_cwv_field(cwv_orcestra_mean, levels=levels_cwv, extent=extent)
 add_east_west_boxes(ax)
 
-plt.scatter(cwv_max_lat_smooth.longitude, cwv_max_lat_smooth, label="CWV max lat (smoothed)")
+plt.scatter(cwv_max_lat_smooth.longitude, cwv_max_lat_smooth, label="Latitude of max. CWV (smoothed)")
 plt.scatter(results.longitude, results.sel(edge_type=0), label="Southern edge")
 plt.scatter(results.longitude, results.sel(edge_type=1), label="Northern edge")
 plt.legend()
+
+sb.despine()
 
 plt.savefig("../figures/cwvMean.pdf", bbox_inches = "tight")
 
@@ -91,7 +94,7 @@ add_east_west_boxes(ax)
 
 test_results = all_time_results.isel(time=time_ind)
 
-plt.scatter(cwv_max_lat_smooth.longitude, cwv_max_lat_smooth, label="CWV max lat (smoothed)")
+plt.scatter(cwv_max_lat_smooth.longitude, cwv_max_lat_smooth, label="Latitude of max. CWV (smoothed)")
 plt.scatter(test_results.longitude, test_results.sel(edge_type=0), label="Southern edge")
 plt.scatter(test_results.longitude, test_results.sel(edge_type=1), label="Northern edge")
 plt.legend()

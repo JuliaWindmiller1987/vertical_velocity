@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import cartopy.crs as ccrs
+import seaborn as sb
 
 def plot_cwv_field(cwv_mean, levels=None, extent=None, ax=None):
     """
@@ -34,6 +35,7 @@ def plot_cwv_field(cwv_mean, levels=None, extent=None, ax=None):
     if levels is not None:
         cwv_mean.plot.contour(ax=ax, levels=levels, colors='k', linewidths=1, alpha=0.5)
 
+    sb.despine()
     return ax
 
 
@@ -87,8 +89,10 @@ def add_east_west_boxes(ax,
     ax.add_patch(west_box)
 
     # Add text labels
-    ax.text((lon_east_min + lon_east_max)/2, lat_max + 1, 'East Box',
+    ax.text((lon_east_min + lon_east_max)/2, lat_max + 1, 'East Atlantic',
             color=col_east, transform=ccrs.PlateCarree(), ha='center')
 
-    ax.text((lon_west_min + lon_west_max)/2, lat_max + 1, 'West Box',
+    ax.text((lon_west_min + lon_west_max)/2, lat_max + 1, 'West Atlantic',
             color=col_west, transform=ccrs.PlateCarree(), ha='center')
+
+    sb.despine()
