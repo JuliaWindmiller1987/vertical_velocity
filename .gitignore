@@ -1,3 +1,4 @@
 data/msk_tcwv-2024-08-09-1hr_22_1_-61_-19.nc
 *.pdf
 *.pyc
+.DS_Store
