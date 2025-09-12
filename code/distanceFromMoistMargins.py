@@ -92,6 +92,12 @@ all_time_results = xr.apply_ufunc(
 )
 
 all_time_results.compute()
+all_time_results = all_time_results.assign_coords(
+    edge_type=(
+        "edge_type",
+        ["south" if v == 0 else "north" for v in all_time_results.edge_type.values],
+    )
+)
 
 # %%
 
@@ -115,7 +121,7 @@ for time_i, time in enumerate(cwv_orcestra.time.values):
     edges_i = all_time_results.isel(time=time_i)
 
     edge_results = []
-    for edge_type in [0, 1]:
+    for edge_type in ["south", "north"]:
         edge_i = edges_i.sel(edge_type=edge_type).dropna(dim="longitude")
         edge_connected_i = rm_outlier(edge_i)
 
@@ -147,19 +153,25 @@ for time_i, time in enumerate(cwv_orcestra.time.values):
 
 
 new_field_alltime = xr.concat(results, dim="time")
-new_field_alltime.loc[dict(edge_type=0)] = -1 * new_field_alltime.sel(edge_type=0)
+new_field_alltime.loc[dict(edge_type="south")] = -1 * new_field_alltime.sel(
+    edge_type="south"
+)
 cwv_orcestra["distance_from_edge"] = new_field_alltime
 
 # %%
 
 fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()})
-new_field_alltime.isel(time=1).sel(edge_type=1).plot()
+new_field_alltime.isel(time=1).sel(edge_type="south").plot()
 
 # %%
-bins = np.arange(-10, 11, 0.1)
-tcwv_binned = cwv_orcestra.tcwv.groupby_bins(
-    cwv_orcestra.distance_from_edge.sel(edge_type=1), bins=bins
-).mean(dim=["time", "latitude", "longitude"])
-# %%
-tcwv_binned.plot()
+
+for edge_type in ["south", "north"]:
+    bins = np.arange(-10, 11, 0.1)
+    tcwv_binned = cwv_orcestra.tcwv.groupby_bins(
+        cwv_orcestra.distance_from_edge.sel(edge_type=edge_type), bins=bins
+    ).mean(dim=["time", "latitude", "longitude"])
+
+    tcwv_binned.plot(label=edge_type)
+
+plt.legend()
 # %%
