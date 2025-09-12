@@ -17,7 +17,6 @@ from scipy import interpolate
 import edgeFinder
 from sklearn.cluster import DBSCAN
 
-
 importlib.reload(edgeFinder)
 from edgeFinder import find_edges_numpy
 
@@ -37,7 +36,6 @@ cwv_orcestra_mean = cwv_orcestra.tcwv.mean("time")
 
 cwv_max = cwv_orcestra_mean.max("latitude")
 cwv_max_lat = cwv_orcestra_mean.idxmax("latitude")
-
 
 # %%
 
@@ -59,7 +57,6 @@ results = xr.apply_ufunc(
 )
 
 # %%
-
 
 ax = plot_cwv_field(cwv_orcestra_mean)
 add_east_west_boxes(ax)
@@ -98,30 +95,6 @@ all_time_results.compute()
 
 # %%
 
-time_ind = 77  # np.random.randint(len(cwv_orcestra.time))
-
-test = cwv_orcestra.tcwv.isel(time=time_ind).compute()
-
-test_results = all_time_results.isel(time=time_ind)
-
-test_south = test_results.sel(edge_type=0).dropna(dim="longitude")
-
-
-# %%
-
-
-# DBSCAN parameters
-# eps: neighborhood radius
-# min_samples: how many neighbors to form a cluster
-
-points = list(zip(test_south.longitude, test_south))
-db = DBSCAN(eps=1.0, min_samples=5).fit(points)
-labels = db.labels_
-labels
-
-isolated_point_mask = labels == -1
-lat_south_connected = test_south[~isolated_point_mask]
-
 
 def rm_outlier(edge):
 
@@ -135,66 +108,9 @@ def rm_outlier(edge):
     return lat_south_connected
 
 
-# %%
-
-
-# %%
-
-ax = plot_cwv_field(test)
-add_east_west_boxes(ax)
-
-plt.scatter(
-    cwv_max_lat.longitude,
-    cwv_max_lat,
-    label="Latitude of max. CWV (smoothed)",
-)
-plt.scatter(
-    test_results.longitude, test_results.sel(edge_type=0), label="Southern edge"
-)
-plt.scatter(
-    test_results.longitude, test_results.sel(edge_type=1), label="Northern edge"
-)
-
-plt.scatter(lat_south_connected.longitude, lat_south_connected)
-
-x = np.arange(-60, -20)
-ax.plot(x - 360, spl(x)[0])
-
-plt.legend()
-
-# %%
-
-# want two 2D fields, one for each edge: lat/lon
-# for each field:
-#   (1) at each latitude where lat_edge is nan: set all latitude values to nan
-#   (2) at each other latitude: set all latitudes values to nan that are north/sout of peak lat
-#   (3) at each latitude set lat_shift of edge to zero, towards peak lat is
-#       negative/away from peak lat is positive
-
-
-# %%
-
-lat = cwv_orcestra.latitude
-lon = cwv_orcestra.longitude
-
-# %%
-
-lat_fit_da = xr.DataArray(
-    spl(lon)[0],
-    dims=("longitude",),
-    coords={"longitude": lon},
-)
-# %%
-
-fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()})
-ax = plot_cwv_field(lat - lat_fit_da).plot()
-ax.plot(lon - 360, spl(lon)[0])
-# %%
-
-
 results = []
 
-for time_i, time in enumerate(cwv_orcestra.time.values[:2]):
+for time_i, time in enumerate(cwv_orcestra.time.values):
     cwv_i = cwv_orcestra.tcwv.isel(time=time_i)
     edges_i = all_time_results.isel(time=time_i)
 
@@ -229,12 +145,21 @@ for time_i, time in enumerate(cwv_orcestra.time.values[:2]):
 
     results.append(edges_for_time)
 
-# Finally combine across time
+
 new_field_alltime = xr.concat(results, dim="time")
+new_field_alltime.loc[dict(edge_type=0)] = -1 * new_field_alltime.sel(edge_type=0)
+cwv_orcestra["distance_from_edge"] = new_field_alltime
 
 # %%
 
 fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()})
-new_field_alltime.isel(time=1).sel(edge_type=0).plot()
+new_field_alltime.isel(time=1).sel(edge_type=1).plot()
 
+# %%
+bins = np.arange(-10, 11, 0.1)
+tcwv_binned = cwv_orcestra.tcwv.groupby_bins(
+    cwv_orcestra.distance_from_edge.sel(edge_type=1), bins=bins
+).mean(dim=["time", "latitude", "longitude"])
+# %%
+tcwv_binned.plot()
 # %%
