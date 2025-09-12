@@ -2,8 +2,13 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import cartopy.crs as ccrs
 import seaborn as sb
+import numpy as np
 
-def plot_cwv_field(cwv_mean, levels=None, extent=None, ax=None):
+levels_cwv = np.sort(np.unique([46, 48, 50, 52, 54]))
+extent = [-65, -15, -5, 25]
+
+
+def plot_cwv_field(cwv_mean, levels=levels_cwv, extent=extent, ax=None):
     """
     Plot the mean CWV field with optional contour levels.
 
@@ -17,33 +22,45 @@ def plot_cwv_field(cwv_mean, levels=None, extent=None, ax=None):
         ax: The axis used for plotting
     """
     if ax is None:
-        fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={'projection': ccrs.PlateCarree()})
+        fig, ax = plt.subplots(
+            figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()}
+        )
 
     # Set extent and background features
     if extent is None:
-        extent = [cwv_mean.longitude.min(), cwv_mean.longitude.max(),
-                  cwv_mean.latitude.min(), cwv_mean.latitude.max()]
+        extent = [
+            cwv_mean.longitude.min(),
+            cwv_mean.longitude.max(),
+            cwv_mean.latitude.min(),
+            cwv_mean.latitude.max(),
+        ]
 
     ax.set_extent(extent, crs=ccrs.PlateCarree())
     ax.coastlines(alpha=1.0)
     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, alpha=0.25)
 
     # Main CWV field
-    cwv_mean.plot(ax=ax, alpha=0.75, cmap='Blues', vmin=45, vmax=70)
+    cwv_mean.plot(ax=ax, alpha=0.75, cmap="Blues", vmin=45, vmax=70)
 
     # Optional contours
     if levels is not None:
-        cwv_mean.plot.contour(ax=ax, levels=levels, colors='k', linewidths=1, alpha=0.5)
+        cwv_mean.plot.contour(ax=ax, levels=levels, colors="k", linewidths=1, alpha=0.5)
 
     sb.despine()
     return ax
 
 
-def add_east_west_boxes(ax,
-                        lat_min=1, lat_max=22,
-                        lon_east_min=-40, lon_east_max=-19,
-                        lon_west_min=-61, lon_west_max=-40,
-                        col_east="C0", col_west="C1"):
+def add_east_west_boxes(
+    ax,
+    lat_min=1,
+    lat_max=22,
+    lon_east_min=-40,
+    lon_east_max=-19,
+    lon_west_min=-61,
+    lon_west_max=-40,
+    col_east="C0",
+    col_west="C1",
+):
     """
     Add East and West boxes to a Cartopy axis.
 
@@ -62,37 +79,55 @@ def add_east_west_boxes(ax,
         [lon_east_min, lat_min],
         [lon_east_max, lat_min],
         [lon_east_max, lat_max],
-        [lon_east_min, lat_max]
+        [lon_east_min, lat_max],
     ]
 
     west_box_coords = [
         [lon_west_min, lat_min],
         [lon_west_max, lat_min],
         [lon_west_max, lat_max],
-        [lon_west_min, lat_max]
+        [lon_west_min, lat_max],
     ]
 
     # Create and add East box
     east_box = mpatches.Polygon(
-        east_box_coords, closed=True,
-        edgecolor=col_east, facecolor='none', linewidth=2,
-        transform=ccrs.PlateCarree()
+        east_box_coords,
+        closed=True,
+        edgecolor=col_east,
+        facecolor="none",
+        linewidth=2,
+        transform=ccrs.PlateCarree(),
     )
     ax.add_patch(east_box)
 
     # Create and add West box
     west_box = mpatches.Polygon(
-        west_box_coords, closed=True,
-        edgecolor=col_west, facecolor='none', linewidth=2,
-        transform=ccrs.PlateCarree()
+        west_box_coords,
+        closed=True,
+        edgecolor=col_west,
+        facecolor="none",
+        linewidth=2,
+        transform=ccrs.PlateCarree(),
     )
     ax.add_patch(west_box)
 
     # Add text labels
-    ax.text((lon_east_min + lon_east_max)/2, lat_max + 1, 'East Atlantic',
-            color=col_east, transform=ccrs.PlateCarree(), ha='center')
+    ax.text(
+        (lon_east_min + lon_east_max) / 2,
+        lat_max + 1,
+        "East Atlantic",
+        color=col_east,
+        transform=ccrs.PlateCarree(),
+        ha="center",
+    )
 
-    ax.text((lon_west_min + lon_west_max)/2, lat_max + 1, 'West Atlantic',
-            color=col_west, transform=ccrs.PlateCarree(), ha='center')
+    ax.text(
+        (lon_west_min + lon_west_max) / 2,
+        lat_max + 1,
+        "West Atlantic",
+        color=col_west,
+        transform=ccrs.PlateCarree(),
+        ha="center",
+    )
 
     sb.despine()

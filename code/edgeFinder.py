@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.signal
+from sklearn.cluster import DBSCAN
 
 
 def find_edges_numpy(cwv, lat_cwv_max, latitudes, cwv_thresh=45):
@@ -14,6 +15,10 @@ def find_edges_numpy(cwv, lat_cwv_max, latitudes, cwv_thresh=45):
         latitudes (np.ndarray): 1D array of latitudes (same length as cwv).
         cwv_thresh (float): CWV of moist margin.
     """
+
+    mask_nan = ~np.isnan(cwv)
+    cwv = cwv[mask_nan]
+    latitudes = latitudes[mask_nan]
 
     if np.max(cwv) <= cwv_thresh:
         return np.array([np.nan, np.nan], dtype=np.float32)
@@ -45,3 +50,36 @@ def find_edges_numpy(cwv, lat_cwv_max, latitudes, cwv_thresh=45):
     )
 
     return np.array([lat_south, lat_north], dtype=np.float32)
+
+
+def find_cwv_center(cwv, lat_cwv_max, latitudes, cwv_thresh=45):
+
+    mask_nan = ~np.isnan(cwv)
+    cwv = cwv[mask_nan]
+    latitudes = latitudes[mask_nan]
+
+    peaks_i, _ = scipy.signal.find_peaks(cwv, height=cwv_thresh, prominence=2)
+    if len(peaks_i) == 0:
+        return np.array([np.nan], dtype=np.float32)
+
+    peak_lats = latitudes[peaks_i]
+    closest_peak_idx = np.argmin(np.abs(peak_lats - lat_cwv_max))
+    lat_peak = peak_lats[closest_peak_idx]
+
+    return np.array([lat_peak], dtype=np.float32)
+
+
+def find_edge_points(cwv, cwv_thresh, delta_cwv):
+    return cwv.where((cwv >= cwv_thresh - delta_cwv) & (cwv <= cwv_thresh + delta_cwv))
+
+
+def rm_outlier(edge):
+
+    points = list(zip(edge.longitude, edge))
+    db = DBSCAN(eps=1.0, min_samples=5).fit(points)
+    labels = db.labels_
+
+    isolated_point_mask = labels == -1
+    lat_south_connected = edge[~isolated_point_mask]
+
+    return lat_south_connected

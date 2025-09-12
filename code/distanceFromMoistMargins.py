@@ -10,15 +10,13 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sb
-from plotUtils import plot_cwv_field, add_east_west_boxes
 
 import importlib
 from scipy import interpolate
 import edgeFinder
-from sklearn.cluster import DBSCAN
 
 importlib.reload(edgeFinder)
-from edgeFinder import find_edges_numpy
+from edgeFinder import find_edges_numpy, rm_outlier
 
 # %%
 cwv_thresh = 50
@@ -36,43 +34,7 @@ cwv_orcestra_mean = cwv_orcestra.tcwv.mean("time")
 
 cwv_max = cwv_orcestra_mean.max("latitude")
 cwv_max_lat = cwv_orcestra_mean.idxmax("latitude")
-
-# %%
-
 latitudes_np = cwv_orcestra_mean.latitude.values
-
-results = xr.apply_ufunc(
-    find_edges_numpy,
-    cwv_orcestra_mean,  # (latitude, longitude)
-    cwv_max_lat,  # (longitude)
-    kwargs={
-        "latitudes": latitudes_np,
-        "cwv_thresh": cwv_thresh,
-    },
-    input_core_dims=[["latitude"], []],
-    output_core_dims=[["edge_type"]],
-    vectorize=True,
-    output_dtypes=[np.float32],
-    output_sizes={"edge_type": 2},
-)
-
-# %%
-
-ax = plot_cwv_field(cwv_orcestra_mean)
-add_east_west_boxes(ax)
-
-plt.scatter(
-    cwv_max_lat.longitude,
-    cwv_max_lat,
-    label="Latitude of max. CWV (smoothed)",
-)
-plt.scatter(results.longitude, results.sel(edge_type=0), label="Southern edge")
-plt.scatter(results.longitude, results.sel(edge_type=1), label="Northern edge")
-plt.legend()
-
-sb.despine()
-
-# plt.savefig("../figures/cwvMean.pdf", bbox_inches="tight")
 
 # %%
 
@@ -101,19 +63,6 @@ all_time_results = all_time_results.assign_coords(
 
 # %%
 
-
-def rm_outlier(edge):
-
-    points = list(zip(edge.longitude, edge))
-    db = DBSCAN(eps=1.0, min_samples=5).fit(points)
-    labels = db.labels_
-
-    isolated_point_mask = labels == -1
-    lat_south_connected = edge[~isolated_point_mask]
-
-    return lat_south_connected
-
-
 results = []
 
 for time_i, time in enumerate(cwv_orcestra.time.values):
@@ -126,7 +75,7 @@ for time_i, time in enumerate(cwv_orcestra.time.values):
         edge_connected_i = rm_outlier(edge_i)
 
         if edge_connected_i.size == 0:
-            new_field = xr.full_like(cwv_i, np.nan)
+            shifted_lat_field = xr.full_like(cwv_i, np.nan)
         else:
             spl, u = interpolate.splprep(
                 [edge_connected_i], u=edge_connected_i.longitude, s=5
@@ -138,40 +87,64 @@ for time_i, time in enumerate(cwv_orcestra.time.values):
                 dims=("longitude",),
                 coords={"longitude": edge_connected_i.longitude},
             )
-            new_field = cwv_i.latitude - latitude_edge_ds
+            shifted_lat_field = cwv_i.latitude - latitude_edge_ds
 
-        new_field = new_field.expand_dims(edge_type=[edge_type])
-        edge_results.append(new_field)
+        shifted_lat_field = shifted_lat_field.expand_dims(edge_type=[edge_type])
+        edge_results.append(shifted_lat_field)
 
-    # First combine edges for this time step
     edges_for_time = xr.concat(edge_results, dim="edge_type")
-
-    # Then add the time dimension
     edges_for_time = edges_for_time.expand_dims(time=[time])
 
     results.append(edges_for_time)
 
-
-new_field_alltime = xr.concat(results, dim="time")
-new_field_alltime.loc[dict(edge_type="south")] = -1 * new_field_alltime.sel(
-    edge_type="south"
+shifted_lat_field_alltime = xr.concat(results, dim="time")
+shifted_lat_field_alltime.loc[dict(edge_type="south")] = (
+    -1 * shifted_lat_field_alltime.sel(edge_type="south")
 )
-cwv_orcestra["distance_from_edge"] = new_field_alltime
+
+# %%
+
+mask_north = shifted_lat_field_alltime.sel(
+    edge_type="north"
+) > shifted_lat_field_alltime.sel(edge_type="south")
+
+shifted_lat_field_alltime.loc[dict(edge_type="north")] = shifted_lat_field_alltime.sel(
+    edge_type="north"
+).where(mask_north)
+shifted_lat_field_alltime.loc[dict(edge_type="south")] = shifted_lat_field_alltime.sel(
+    edge_type="south"
+).where(~mask_north)
+
+cwv_orcestra["distance_from_edge"] = shifted_lat_field_alltime
 
 # %%
 
 fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()})
-new_field_alltime.isel(time=1).sel(edge_type="south").plot()
+shifted_lat_field_alltime.isel(time=1).sel(edge_type="south").plot()
 
 # %%
 
+results_bins = {}
+
 for edge_type in ["south", "north"]:
-    bins = np.arange(-10, 11, 0.1)
+    bins = np.arange(-5, 11, 0.1)
     tcwv_binned = cwv_orcestra.tcwv.groupby_bins(
         cwv_orcestra.distance_from_edge.sel(edge_type=edge_type), bins=bins
     ).mean(dim=["time", "latitude", "longitude"])
 
-    tcwv_binned.plot(label=edge_type)
+    results_bins[edge_type] = tcwv_binned
+
+# %%
+for edge_type in ["south", "north"]:
+
+    results_bins[edge_type].plot(label=edge_type)
 
 plt.legend()
+sb.despine()
+plt.title(" ")
+plt.xlabel("distance from edge / °")
+plt.ylabel("CWV / mm")
+
+plt.axvline(0, color="k", linestyle=":")
+
 # %%
