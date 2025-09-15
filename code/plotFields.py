@@ -69,7 +69,7 @@ plt.legend()
 
 sb.despine()
 
-# plt.savefig("../figures/cwvMean.pdf", bbox_inches="tight")
+plt.savefig("./figures/cwvMean.pdf", bbox_inches="tight")
 
 # %%
 
@@ -98,7 +98,7 @@ plot_cwv_field(
     cwv_orcestra_with_edge.tcwv.isel(time=time_ind),
     levels=[45, 55],
     ax=ax,
-    # cbar_kwargs=cbar_kwargs,
+    cbar_kwargs=cbar_kwargs,
 )
 cwv_orcestra_with_edge.tcwv.isel(time=time_ind).plot.contour(
     levels=[cwv_thresh], colors="k"
@@ -118,7 +118,7 @@ for i_edge, edge in enumerate(["south", "north"]):
         vmin=-15,
         vmax=15,
         levels=np.arange(-15, 15, 1),
-        cbar_kwargs=cbar_kwargs,
+        cbar_kwargs={**cbar_kwargs, "label": f"distance from {edge}ern edge \n [°]"},
     )
 
     cwv_orcestra_with_edge.tcwv.isel(time=time_ind).plot.contour(
