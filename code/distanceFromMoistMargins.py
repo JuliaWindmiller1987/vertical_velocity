@@ -14,13 +14,13 @@ import seaborn as sb
 import importlib
 from scipy import interpolate
 import edgeFinder
+import plotUtils
 
 importlib.reload(edgeFinder)
 from edgeFinder import find_edges_numpy, rm_outlier
 
 # %%
 cwv_thresh = 50
-cwv_min = 45
 # %%
 
 data_path = (
@@ -104,24 +104,74 @@ shifted_lat_field_alltime.loc[dict(edge_type="south")] = (
 
 # %%
 
-mask_north = shifted_lat_field_alltime.sel(
-    edge_type="north"
-) > shifted_lat_field_alltime.sel(edge_type="south")
+# mask_north = shifted_lat_field_alltime.sel(
+#     edge_type="north"
+# ) > shifted_lat_field_alltime.sel(edge_type="south")
 
-shifted_lat_field_alltime.loc[dict(edge_type="north")] = shifted_lat_field_alltime.sel(
-    edge_type="north"
-).where(mask_north)
-shifted_lat_field_alltime.loc[dict(edge_type="south")] = shifted_lat_field_alltime.sel(
-    edge_type="south"
-).where(~mask_north)
-
-cwv_orcestra["distance_from_edge"] = shifted_lat_field_alltime
+# shifted_lat_field_alltime.loc[dict(edge_type="north")] = shifted_lat_field_alltime.sel(
+#     edge_type="north"
+# ).where(mask_north)
+# shifted_lat_field_alltime.loc[dict(edge_type="south")] = shifted_lat_field_alltime.sel(
+#     edge_type="south"
+# ).where(~mask_north)
 
 # %%
 
-fig, ax = plt.subplots(figsize=(12, 6), subplot_kw={"projection": ccrs.PlateCarree()})
-shifted_lat_field_alltime.isel(time=1).sel(edge_type="south").plot()
+cwv_orcestra["distance_from_edge"] = shifted_lat_field_alltime
+cwv_orcestra.to_netcdf(data_path + file_name.split(".")[0] + "_w_edge_field" + ".nc")
 
+# %%
+
+fig, axes = plt.subplots(
+    3, 1, figsize=(6, 10), subplot_kw={"projection": ccrs.PlateCarree()}, sharex=True
+)
+
+extent = [-65, -15, -5, 25]
+time_ind = 20
+
+ax = axes[0]
+plt.sca(ax)
+
+cbar_kwargs = {
+    "shrink": 0.7,
+    "aspect": 30,
+    "pad": 0.1,
+}
+
+plotUtils.plot_cwv_field(
+    cwv_orcestra.tcwv.isel(time=time_ind),
+    levels=[45, 55],
+    ax=ax,
+    cbar_kwargs=cbar_kwargs,
+)
+cwv_orcestra.tcwv.isel(time=time_ind).plot.contour(levels=[cwv_thresh], colors="k")
+plotUtils.add_east_west_boxes(ax)
+
+for i_edge, edge in enumerate(["south", "north"]):
+
+    ax = axes[i_edge + 1]
+    plt.sca(ax)
+
+    shifted_lat_field_alltime.isel(time=time_ind).sel(edge_type=edge).plot(
+        cmap="BrBG",
+        add_colorbar=True,
+        vmin=-15,
+        vmax=15,
+        levels=np.arange(-15, 15, 1),
+        cbar_kwargs=cbar_kwargs,
+    )
+
+    cwv_orcestra.tcwv.isel(time=time_ind).plot.contour(levels=[cwv_thresh], colors="k")
+
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.coastlines(alpha=1.0)
+    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, alpha=0.25)
+    ax.set_title(" ")
+
+    plotUtils.add_east_west_boxes(ax)
+
+plt.tight_layout()
+plt.savefig("./figures/example_edge.png")
 # %%
 
 results_bins = {}
