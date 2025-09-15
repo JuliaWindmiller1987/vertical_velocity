@@ -8,7 +8,7 @@ levels_cwv = np.sort(np.unique([46, 48, 50, 52, 54]))
 extent = [-65, -15, -5, 25]
 
 
-def plot_cwv_field(cwv_mean, levels=levels_cwv, extent=extent, ax=None):
+def plot_cwv_field(cwv_mean, levels=levels_cwv, extent=extent, ax=None, **kwargs):
     """
     Plot the mean CWV field with optional contour levels.
 
@@ -39,8 +39,10 @@ def plot_cwv_field(cwv_mean, levels=levels_cwv, extent=extent, ax=None):
     ax.coastlines(alpha=1.0)
     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, alpha=0.25)
 
+    plot_kwargs = {**dict(alpha=0.75, cmap="Blues", vmin=45, vmax=70), **kwargs}
+
     # Main CWV field
-    cwv_mean.plot(ax=ax, alpha=0.75, cmap="Blues", vmin=45, vmax=70)
+    cwv_mean.plot(ax=ax, **plot_kwargs)
 
     # Optional contours
     if levels is not None:
