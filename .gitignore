@@ -3,3 +3,4 @@
 .DS_Store
 code/Windmiller2025_ObservingVerticalVelocities.code-workspace
 *.png
+*.nc
