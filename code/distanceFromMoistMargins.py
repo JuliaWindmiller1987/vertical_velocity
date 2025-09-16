@@ -77,10 +77,10 @@ for time_i, time in enumerate(cwv_orcestra.time.values):
         if edge_connected_i.size == 0:
             shifted_lat_field = xr.full_like(cwv_i, np.nan)
         else:
-            spl, u = interpolate.splprep(
-                [edge_connected_i], u=edge_connected_i.longitude, s=5
+            spl = interpolate.make_splrep(
+                edge_connected_i.longitude, edge_connected_i, s=15
             )
-            lat_fit = interpolate.splev(edge_connected_i.longitude, spl)[0]
+            lat_fit = spl(edge_connected_i.longitude)
 
             latitude_edge_ds = xr.DataArray(
                 lat_fit,
@@ -102,22 +102,22 @@ shifted_lat_field_alltime.loc[dict(edge_type="south")] = (
     -1 * shifted_lat_field_alltime.sel(edge_type="south")
 )
 
+
+cwv_orcestra["distance_from_edge"] = shifted_lat_field_alltime.copy()
+mask_north = shifted_lat_field_alltime.sel(
+    edge_type="north"
+) > shifted_lat_field_alltime.sel(edge_type="south")
+shifted_lat_field_alltime.loc[dict(edge_type="north")] = shifted_lat_field_alltime.sel(
+    edge_type="north"
+).where(mask_north)
+shifted_lat_field_alltime.loc[dict(edge_type="south")] = shifted_lat_field_alltime.sel(
+    edge_type="south"
+).where(~mask_north)
+
+cwv_orcestra["min_distance_from_edge"] = shifted_lat_field_alltime
+
 # %%
 
-# mask_north = shifted_lat_field_alltime.sel(
-#     edge_type="north"
-# ) > shifted_lat_field_alltime.sel(edge_type="south")
-
-# shifted_lat_field_alltime.loc[dict(edge_type="north")] = shifted_lat_field_alltime.sel(
-#     edge_type="north"
-# ).where(mask_north)
-# shifted_lat_field_alltime.loc[dict(edge_type="south")] = shifted_lat_field_alltime.sel(
-#     edge_type="south"
-# ).where(~mask_north)
-
-# %%
-
-cwv_orcestra["distance_from_edge"] = shifted_lat_field_alltime
 cwv_orcestra.to_netcdf(data_path + file_name.split(".")[0] + "_w_edge_field" + ".nc")
 
 # %%
