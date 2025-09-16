@@ -8,6 +8,23 @@ levels_cwv = np.sort(np.unique([46, 48, 50, 52, 54]))
 extent = [-65, -15, -5, 25]
 
 
+def plot_map():
+    fig, ax = plt.subplots(
+        1, 1, figsize=(6, 4), subplot_kw={"projection": ccrs.PlateCarree()}, sharex=True
+    )
+
+    extent = [-65, -15, -5, 25]
+
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.coastlines(alpha=1.0)
+    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False, alpha=0.25)
+    ax.set_title(" ")
+
+    add_east_west_boxes(ax)
+
+    return fig, ax
+
+
 def plot_cwv_field(cwv_mean, levels=levels_cwv, extent=extent, ax=None, **kwargs):
     """
     Plot the mean CWV field with optional contour levels.
