@@ -1,0 +1,3 @@
+[submodule "convlines"]
+	path = convlines
+	url = git@gitlab.gwdg.de:tete/convlines.git
