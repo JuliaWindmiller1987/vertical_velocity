@@ -29,8 +29,10 @@ cwv_orcestra_with_edge = xr.open_dataset(data_path + file_name)
 cwv_orcestra_mean = cwv_orcestra_with_edge.tcwv.mean("time")
 
 cwv_max = cwv_orcestra_mean.max("latitude")
-cwv_max_lat = cwv_orcestra_mean.idxmax("latitude")
-
+# cwv_max_lat = cwv_orcestra_mean.idxmax("latitude")
+cwv_max_lat = (
+    cwv_orcestra_with_edge.sel(time="2024-09-07").tcwv.mean("time").idxmax("latitude")
+)
 # %%
 
 era_ind = cwv_orcestra_with_edge.sel(
@@ -57,31 +59,44 @@ edges_ind = find_edges_numpy(
 
 edges_ind
 # %%
+####################
 
-era_ind.tcwv.sel(longitude=lon_ind).plot()
+importlib.reload(edgeFinder)
+from edgeFinder import find_edges_numpy, rm_outlier
+
+era_ind = cwv_orcestra_with_edge.sel(
+    time="2024-09-07T15:00:00.000000000", method="nearest"
+)
+
+test_field = era_ind.sel(longitude=slice(320, 345))
+
+snapshot_mean = test_field.tcwv.mean("longitude")
+
+snapshot_mean.plot()
+test_field.tcwv.sel(longitude=lon_ind).plot()
 plt.axvline(edges_ind[0])
 plt.axvline(edges_ind[1])
 # %%
 
+cwv_max_lat = snapshot_mean.idxmax("latitude")
+
 edges_i = []
 
-for lon_ind in era_ind.tcwv.longitude:
-    tcwv_ind = era_ind.tcwv.sel(longitude=lon_ind).values
-    lat_ind = era_ind.latitude.values
+for lon_ind in test_field.tcwv.longitude:
+    tcwv_ind = test_field.tcwv.sel(longitude=lon_ind).values
+    lat_ind = test_field.latitude.values
 
-    edges_ind = find_edges_numpy(
-        tcwv_ind, float(cwv_max_lat.sel(longitude=lon_ind)), lat_ind, cwv_thresh=50
-    )
+    edges_ind = find_edges_numpy(tcwv_ind, float(cwv_max_lat), lat_ind, cwv_thresh=50)
 
-    edges_i.append(edges_ind[1])  # change here for north or south
+    edges_i.append(edges_ind[0])  # change here for north or south
 
 edges_i = xr.DataArray(
     edges_i,
     dims=("longitude",),
-    coords={"longitude": era_ind.tcwv.longitude - 360},
+    coords={"longitude": test_field.tcwv.longitude - 360},
 )
 # %%
-plot_cwv_field(era_ind.tcwv)
+plot_cwv_field(test_field.tcwv)
 edges_i.plot(c="k")
 # %%
 
@@ -98,7 +113,7 @@ def rm_outlier(edge):
     return lat_south_connected
 
 
-plot_cwv_field(era_ind.tcwv)
+plot_cwv_field(test_field.tcwv)
 edge_i = edges_i.dropna(dim="longitude")
 edge_connected_i = rm_outlier(edge_i)
 edge_connected_i.plot(c="k")
@@ -108,7 +123,7 @@ s = 15
 spl = interpolate.make_splrep(edge_connected_i.longitude, edge_connected_i, s=s)
 lat_fit = spl(edge_connected_i.longitude)
 
-plot_cwv_field(era_ind.tcwv)
+plot_cwv_field(test_field.tcwv)
 plt.scatter(edge_connected_i.longitude, lat_fit, label=s)
 edge_connected_i.plot(c="k")
 # %%
