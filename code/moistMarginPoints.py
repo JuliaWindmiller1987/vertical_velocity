@@ -2,14 +2,19 @@
 import sys
 
 sys.path.append("./code")
+sys.path.append("../convlines")
 
 # %%
 import xarray as xr
+import pandas as pd
 import numpy as np
 from plotUtils import plot_cwv_field, add_east_west_boxes
 import matplotlib.pyplot as plt
 import importlib
 import edgeFinder
+
+
+from convlines import calculate_lines, lines_df_to_gdf
 
 # %%
 cwv_thresh = 50
@@ -61,7 +66,7 @@ cwv_south = cwv_orcestra.tcwv.where(cwv_orcestra.latitude <= peak_lat)
 
 # %%
 
-time_ind = np.random.randint(len(cwv_orcestra.time))
+time_ind = 682  # np.random.randint(len(cwv_orcestra.time))
 
 ax = plot_cwv_field(
     cwv_orcestra.isel(time=time_ind).tcwv,
@@ -77,5 +82,31 @@ for cwv_field in [cwv_north, cwv_south]:
     )
     add_east_west_boxes(ax)
     plt.axvline(-55)
+
+
+# %%
+
+boxpix = 5
+res = 0.25
+
+da = cwv_orcestra.isel(time=time_ind).tcwv
+
+fig, ax = plt.subplots()
+da.plot(levels=[46, 48, 50, 52, 54])
+
+for cwv_field in [cwv_north, cwv_south]:
+
+    test_field = cwv_field.isel(time=time_ind)
+    test_points = find_edge_points(test_field, cwv_thresh, 3.0)
+
+    dslines = calculate_lines(test_points.rename({"time": "valid_time"}), boxpix, res)
+    gdf = lines_df_to_gdf(dslines)
+
+    min_length = 3
+    gdf_filtered = gdf[gdf["length"] >= min_length]
+
+    gdf_filtered.plot(ax=ax, color="C1", linewidth=2)
+# %%
+
 
 # %%
