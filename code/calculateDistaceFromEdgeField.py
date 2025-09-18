@@ -120,7 +120,9 @@ cwv_orcestra_with_edge["distance_north"] = cwv_orcestra_with_edge.distance.where
     cwv_orcestra_with_edge.latitude >= lat_itcz_center, drop=True
 )
 
-cwv_orcestra.to_netcdf(data_path + file_name.split(".")[0] + "_w_edge_field" + ".nc")
+cwv_orcestra_with_edge.to_netcdf(
+    data_path + file_name.split(".")[0] + "_w_edge_field" + ".nc"
+)
 # %%
 # Example use case
 
