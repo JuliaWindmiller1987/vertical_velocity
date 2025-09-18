@@ -72,72 +72,35 @@ result_combined["wvel"] = lev4.wvel
 
 # %%
 
-for edge_t in ["north", "south"]:
-    result_combined.min_distance_from_edge.sel(edge_type=edge_t).plot.hist(
-        histtype="step",
-        label=f"{len(result_combined.min_distance_from_edge.sel(edge_type=edge_t).dropna(dim="circle"))}",
-    )
+result_combined.distance.plot.hist(bins=20, density=True)
 
-plt.legend()
+(result_combined.distance).quantile(0.77)
 
 # %%
 
-fig, ax = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
-
-linestyle = ["solid", "dotted"]
-
-for i_domain, domain in enumerate(["west", "east"]):
-
-    plt.sca(ax[i_domain])
-
-    if domain == "east":
-        result_domain = result_combined.where(
-            result_combined.circle_lon >= -40, drop=True
-        )
-
-    elif domain == "west":
-        result_domain = result_combined.where(
-            result_combined.circle_lon < -40, drop=True
-        )
-
-    result_domain = result_domain.sel(altitude=slice(0, 12.5e3))
-
-    for i_edge, edge_t in enumerate(["north", "south"]):
-        distance_from_sel_edge = result_domain.min_distance_from_edge.sel(
-            edge_type=edge_t
-        )
-
-        wvel_at_edge = result_domain.wvel.groupby_bins(
-            distance_from_sel_edge,
-            bins=np.arange(-3, 1.6, 1.5),
-            labels=["center", "inside", "outside"],
-        ).mean()
-
-        for i_bin, bin in enumerate(wvel_at_edge.min_distance_from_edge_bins.values):
-            wvel_at_edge.sel(min_distance_from_edge_bins=bin).plot(
-                y="altitude",
-                label=f"{bin} ITCZ ({edge_t})",
-                color=f"C{i_bin}",
-                linestyle=linestyle[i_edge],
-            )
-
-    plt.title(domain)
-    plt.ylim(ymin=0)
-    plt.axvline(0, linestyle="solid", linewidth=0.5, color="k")
-
-sb.despine()
-
-handles, labels = ax[0].get_legend_handles_labels()
-
-fig.legend(
-    handles,
-    labels,
-    loc="upper center",
-    ncol=2,
-    bbox_to_anchor=(0.5, 1.10),
+results_binned = result_combined.groupby_bins(
+    result_combined.distance,
+    bins=np.arange(-5, 5.1, 5),
 )
+results_binned_mean = results_binned.mean()
+results_binned_count = results_binned.count()
+print(results_binned_count.tcwv.values, results_binned_count.tcwv.sum().values)
 
+for i_bin, bin in enumerate(results_binned_mean.distance_bins):
+
+    bin_count = results_binned_count.sel(distance_bins=bin)
+    wvel_bin = results_binned_mean.sel(distance_bins=bin).wvel
+    wvel_bin = wvel_bin.where(bin_count.wvel / bin_count.distance > 0.9, drop=True)
+
+    bin_str = f"{bin.values} (#{int(bin_count.distance.values)}): {wvel_bin.mean().values*1000:.1f} mm/s"
+    wvel_bin.plot(y="altitude", label=bin_str)
+
+plt.ylim(0, 12.5e3)
+sb.despine()
+plt.legend()
+plt.title("ORCESTRA dropsonde circles")
 # %%
+# Example plot
 
 ind_ds = 1
 
@@ -150,7 +113,7 @@ b = a.sel(latitude=circle.circle_lat, method="nearest")
 
 
 fig, ax = plot_map()
-era_ind.distance_south.plot()
+era_ind.distance.plot()
 era_ind.tcwv.plot.contour(levels=[46, 48, 50, 52])
 
 plt.scatter(circle.circle_lon, circle.circle_lat)
