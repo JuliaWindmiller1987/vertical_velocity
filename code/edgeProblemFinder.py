@@ -14,7 +14,7 @@ import importlib
 import edgeFinder
 
 importlib.reload(edgeFinder)
-from edgeFinder import find_edges_numpy, rm_outlier
+from edgeFinder import find_edges_numpy, rm_outlier, find_crossing
 
 from plotUtils import plot_cwv_field, add_east_west_boxes, plot_map
 
@@ -53,8 +53,9 @@ lon_ind = lon_error[1]
 tcwv_ind = era_ind.tcwv.sel(longitude=lon_ind).values
 lat_ind = era_ind.latitude.values
 
+
 edges_ind = find_edges_numpy(
-    tcwv_ind, float(cwv_max_lat.sel(longitude=lon_ind)), lat_ind, cwv_thresh=50
+    tcwv_ind, float(cwv_max_lat.sel(longitude=lon_ind)), lat_ind, cwv_thresh=cwv_thresh
 )
 
 edges_ind
@@ -65,65 +66,77 @@ importlib.reload(edgeFinder)
 from edgeFinder import find_edges_numpy, rm_outlier
 
 era_ind = cwv_orcestra_with_edge.sel(
-    time="2024-09-07T15:00:00.000000000", method="nearest"
+    time="2024-09-30T12:00:00.000000000", method="nearest"
 )
 
-test_field = era_ind.sel(longitude=slice(320, 345))
+test_field = era_ind.sel(longitude=slice(299, 320))
+ax = plot_cwv_field(test_field.tcwv)
+add_east_west_boxes(ax)
 
 snapshot_mean = test_field.tcwv.mean("longitude")
 
-snapshot_mean.plot()
-test_field.tcwv.sel(longitude=lon_ind).plot()
-plt.axvline(edges_ind[0])
-plt.axvline(edges_ind[1])
-# %%
+# plt.figure()
+# snapshot_mean.plot()
+# plt.axvline(edges_ind[0])
+# plt.axvline(edges_ind[1])
+
+
+cwv_thresh = 48
+
+if snapshot_mean.max() < cwv_thresh:
+    print("Need to break the loop and return none")
 
 cwv_max_lat = snapshot_mean.idxmax("latitude")
 
-edges_i = []
-
-for lon_ind in test_field.tcwv.longitude:
-    tcwv_ind = test_field.tcwv.sel(longitude=lon_ind).values
-    lat_ind = test_field.latitude.values
-
-    edges_ind = find_edges_numpy(tcwv_ind, float(cwv_max_lat), lat_ind, cwv_thresh=50)
-
-    edges_i.append(edges_ind[0])  # change here for north or south
-
-edges_i = xr.DataArray(
-    edges_i,
-    dims=("longitude",),
-    coords={"longitude": test_field.tcwv.longitude - 360},
-)
-# %%
-plot_cwv_field(test_field.tcwv)
-edges_i.plot(c="k")
-# %%
+cwv_crossings = find_crossing(snapshot_mean, snapshot_mean.latitude, cwv_thresh)
+cwv_lat_north = cwv_crossings[cwv_crossings.latitude > cwv_max_lat].min().values
+cwv_lat_south = cwv_crossings[cwv_crossings.latitude < cwv_max_lat].max().values
 
 
-def rm_outlier(edge):
+for edges_where in [0, 1]:
+    edges_i = []
 
-    points = list(zip(edge.longitude, edge))
-    db = DBSCAN(eps=1.0, min_samples=5).fit(points)
-    labels = db.labels_
+    for lon_ind in test_field.tcwv.longitude:
+        tcwv_ind = test_field.tcwv.sel(longitude=lon_ind).values
+        lat_ind = test_field.latitude.values
 
-    isolated_point_mask = labels == -1
-    lat_south_connected = edge[~isolated_point_mask]
+        edges_ind = find_edges_numpy(
+            tcwv_ind,
+            float(cwv_max_lat),
+            cwv_lat_south,
+            cwv_lat_north,
+            lat_ind,
+            cwv_thresh=cwv_thresh,
+        )
 
-    return lat_south_connected
+        edges_i.append(edges_ind[edges_where])  # change here for north or south
 
+    edges_i = xr.DataArray(
+        edges_i,
+        dims=("longitude",),
+        coords={"longitude": test_field.tcwv.longitude - 360},
+    )
 
-plot_cwv_field(test_field.tcwv)
-edge_i = edges_i.dropna(dim="longitude")
-edge_connected_i = rm_outlier(edge_i)
-edge_connected_i.plot(c="k")
-# %%
-s = 15
+    def rm_outlier(edge):
 
-spl = interpolate.make_splrep(edge_connected_i.longitude, edge_connected_i, s=s)
-lat_fit = spl(edge_connected_i.longitude)
+        points = list(zip(edge.longitude, edge))
+        db = DBSCAN(eps=1.0, min_samples=5).fit(points)
+        labels = db.labels_
 
-plot_cwv_field(test_field.tcwv)
-plt.scatter(edge_connected_i.longitude, lat_fit, label=s)
-edge_connected_i.plot(c="k")
+        isolated_point_mask = labels == -1
+        lat_south_connected = edge[~isolated_point_mask]
+
+        return lat_south_connected
+
+    edge_i = edges_i.dropna(dim="longitude")
+    edge_connected_i = rm_outlier(edge_i)
+    edge_connected_i.plot(c="k")
+
+    s = 5
+
+    spl = interpolate.make_splrep(edge_connected_i.longitude, edge_connected_i, s=s)
+    lat_fit = spl(edge_connected_i.longitude)
+
+    plt.scatter(edge_connected_i.longitude, lat_fit, label=s)
+    edge_connected_i.plot(c="k")
 # %%
