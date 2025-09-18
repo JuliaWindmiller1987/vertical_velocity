@@ -144,29 +144,15 @@ ind_ds = 1
 circle = ds_sub.isel(circle=ind_ds)
 
 era_ind = cwv_orcestra_with_edge.sel(time=circle.circle_time, method="nearest")
-plot_cwv_field(era_ind.tcwv)
-plt.scatter(circle.circle_lon, circle.circle_lat)
 
 a = era_ind.sel(longitude=360 + circle.circle_lon, method="nearest")
 b = a.sel(latitude=circle.circle_lat, method="nearest")
 
 
 fig, ax = plot_map()
-era_ind.sel(edge_type="south").min_distance_from_edge.plot()
+era_ind.distance_south.plot()
+era_ind.tcwv.plot.contour(levels=[46, 48, 50, 52])
 
 plt.scatter(circle.circle_lon, circle.circle_lat)
-# %%
 
-a.tcwv.plot()
-plt.axvline(circle.circle_lat)
-
-# %%
-
-lon_error = era_ind.longitude.where(
-    np.isnan(era_ind.sel(edge_type="south").isel(latitude=-1).min_distance_from_edge),
-    drop=True,
-).values
-# %%
-
-era_ind.tcwv.sel(longitude=lon_error[0]).plot()
 # %%
