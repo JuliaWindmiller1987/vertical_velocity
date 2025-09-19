@@ -61,6 +61,8 @@ def pick_single_key_region(
 
 
 cwv_thresh = 50
+cwv_thresh_flag = 48
+
 res_in_deg = 0.25
 
 iterations1 = 4
@@ -72,6 +74,8 @@ structure2 = np.ones((3, 3))
 
 distance_A = []
 key_cwv_region_A = []
+
+flag_ratios = np.ones(len(cwv_orcestra.time.values))
 
 for i_time, time in enumerate(cwv_orcestra.time.values):
 
@@ -85,6 +89,17 @@ for i_time, time in enumerate(cwv_orcestra.time.values):
         iterations2,
     )
 
+    area_cwv_region = np.sum(key_cwv_region)
+
+    key_cwv_flag_region = pick_single_key_region(
+        np.where(cwv_field > cwv_thresh_flag, 1, 0),
+        structure1,
+        iterations1,
+        structure2,
+        iterations2,
+    )
+    flag_ratios[i_time] = np.sum(key_cwv_flag_region) / area_cwv_region
+
     distance_inside = -1 * distance_transform_edt(key_cwv_region)
     distance_outside = distance_transform_edt(np.where(key_cwv_region == 0, 1, 0))
 
@@ -92,6 +107,11 @@ for i_time, time in enumerate(cwv_orcestra.time.values):
 
     distance_A.append(distance)
     key_cwv_region_A.append(key_cwv_region)
+
+
+flag = np.full(len(flag_ratios), "ok", dtype="<U4")
+flag[flag_ratios > 1.5] = "bad"
+flag[flag_ratios <= 1.25] = "good"
 
 # %%
 
@@ -106,6 +126,11 @@ distance_ds = xr.Dataset(
         "longitude": cwv_orcestra.longitude,
     },
 )
+
+distance_ds = distance_ds.assign(flag_ratios=("time", flag_ratios))
+distance_ds = distance_ds.assign(flag=("time", flag))
+
+
 # %%
 cwv_orcestra_with_edge = xr.merge([cwv_orcestra, distance_ds])
 cwv_orcestra_with_edge = cwv_orcestra_with_edge.sel(longitude=slice(300, 340))
@@ -120,6 +145,7 @@ cwv_orcestra_with_edge["distance_north"] = cwv_orcestra_with_edge.distance.where
     cwv_orcestra_with_edge.latitude >= lat_itcz_center, drop=True
 )
 
+# %%
 cwv_orcestra_with_edge.to_netcdf(
     data_path + file_name.split(".")[0] + "_w_edge_field" + ".nc"
 )
