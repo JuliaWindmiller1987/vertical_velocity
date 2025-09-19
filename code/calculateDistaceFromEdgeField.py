@@ -152,15 +152,28 @@ cwv_orcestra_with_edge.to_netcdf(
 # %%
 # Example use case
 
-time_ind = 10
-cwv_orcestra_with_edge_ts = cwv_orcestra_with_edge.isel(time=time_ind)
+from plotUtils import plot_map
+
+time = "2024-09-07T15"
+cwv_orcestra_with_edge_ts = cwv_orcestra_with_edge.sel(time=time)
+
 
 # cwv_orcestra_with_edge_ts.tcwv.plot()
-cwv_orcestra_with_edge_ts.largest_cluster.plot.contour(levels=[0.5])
-cwv_orcestra_with_edge_ts.distance_north.plot(vmin=-20, vmax=20, cmap="seismic")
 
-plt.scatter(cwv_orcestra_with_edge_ts.longitude, lat_itcz_center.isel(time=time_ind))
+fig, ax = plot_map()
 
+plt.sca(ax)
+
+cwv_orcestra_with_edge_ts.largest_cluster.plot.contour(levels=[0.5], colors=["k"])
+cwv_orcestra_with_edge_ts.distance.plot(vmin=-7.5, vmax=7.5, cmap="RdBu_r", alpha=0.75)
+
+plt.plot(
+    cwv_orcestra_with_edge_ts.longitude,
+    lat_itcz_center.sel(time=time),
+    c="Grey",
+)
+
+plt.savefig("../figures/example_edge.png")
 # %%
 
 dic_region = {"west": [300, 320], "east": [320, 340], "all": [300, 340]}
@@ -182,4 +195,6 @@ for i_region, region in enumerate(["all"]):
 
 plt.axvline(0, c="k", linestyle="dashed")
 sb.despine()
+
+plt.savefig("../figures/cwv_edge.png")
 # %%

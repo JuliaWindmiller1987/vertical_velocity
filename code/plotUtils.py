@@ -10,7 +10,11 @@ extent = [-65, -15, -5, 25]
 
 def plot_map():
     fig, ax = plt.subplots(
-        1, 1, figsize=(6, 4), subplot_kw={"projection": ccrs.PlateCarree()}, sharex=True
+        1,
+        1,
+        figsize=(12, 6),
+        subplot_kw={"projection": ccrs.PlateCarree()},
+        sharex=True,
     )
 
     extent = [-65, -15, -5, 25]
