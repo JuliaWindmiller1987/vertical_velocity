@@ -70,6 +70,8 @@ for ind_ds in range(len(lev4.circle)):
 result_combined = xr.concat(results, dim="circle")
 result_combined["wvel"] = lev4.wvel
 
+print("Removes flag distance fields")
+result_combined = result_combined.where(result_combined.flag == "good", drop=True)
 # %%
 
 result_combined.distance.plot.hist(bins=20, density=True)
@@ -78,9 +80,9 @@ result_combined.distance.plot.hist(bins=20, density=True)
 
 # %%
 
-results_binned = result_combined.groupby_bins(
+results_binned = result_combined[["tcwv", "wvel", "distance"]].groupby_bins(
     result_combined.distance,
-    bins=np.arange(-5, 5.1, 5),
+    bins=np.arange(-5, 2.6, 2.5),
 )
 results_binned_mean = results_binned.mean()
 results_binned_count = results_binned.count()
@@ -96,9 +98,12 @@ for i_bin, bin in enumerate(results_binned_mean.distance_bins):
     wvel_bin.plot(y="altitude", label=bin_str)
 
 plt.ylim(0, 12.5e3)
+plt.xlim(-0.025, 0.025)
 sb.despine()
-plt.legend()
-plt.title("ORCESTRA dropsonde circles")
+plt.legend(loc=3, fontsize=8)
+plt.title("ORCESTRA dropsonde circles \n binned by distance to edge")
+plt.tight_layout()
+plt.savefig("../figures/dropsonde_distance_edge.png")
 # %%
 # Example plot
 
@@ -113,7 +118,7 @@ b = a.sel(latitude=circle.circle_lat, method="nearest")
 
 
 fig, ax = plot_map()
-era_ind.distance.plot()
+era_ind.distance.plot(cmap="RdBu_r", alpha=0.75, vmin=-7.5, vmax=7.5)
 era_ind.tcwv.plot.contour(levels=[46, 48, 50, 52])
 
 plt.scatter(circle.circle_lon, circle.circle_lat)
