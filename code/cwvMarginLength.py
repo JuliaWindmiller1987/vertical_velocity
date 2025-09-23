@@ -79,15 +79,34 @@ contour_lengths = np.empty(len(time_da))
 contour_refs = np.empty(len(time_da))
 
 cluster_fields = cluster_field_with_border(cwv_orcestra.tcwv, cwv_thresh)
-cluster_fields_sens = cluster_field_with_border(cwv_orcestra.tcwv, 45)
-
 contour_ds = calc_blw_ds(cluster_fields, res_in_deg, min_contour_length)
+contour_ds["blw"].attrs[
+    "description"
+] = f"BLW index calculated based on {cwv_thresh} mm margin"
+
+cwv_thresh_sens = 45
+cluster_fields_sens = cluster_field_with_border(cwv_orcestra.tcwv, cwv_thresh_sens)
 contour_ds_sens = calc_blw_ds(cluster_fields_sens, res_in_deg, min_contour_length)
 
 # %%
 
 contour_ds.blw.plot()
 contour_ds_sens.blw.plot()
+
+# %%
+
+np.abs(contour_ds_sens.blw - contour_ds.blw).plot.hist(
+    bins=20, cumulative=True, density=True
+)
+
+contour_ds["flag"] = xr.where(
+    np.abs(contour_ds_sens.blw - contour_ds.blw) > 0.1, "bad", "good"
+)
+
+contour_ds["flag"].attrs[
+    "description"
+] = f"Flag is 'bad' where |blw - blw ({cwv_thresh_sens} mm)| > 0.1, otherwise 'good'."
+
 # %%
 
 # tcwv_cluster = xr.merge([tcwv_cluster, contour_ds])
@@ -99,7 +118,7 @@ contour_ds["blw"].plot()
 
 # %%
 # Example
-time = "2024-08-15T12:00:00.000000000"  # "2024-09-07T15"
+time = "2024-09-24T10:00:00.000000000"  # "2024-09-07T15"
 cluster_fields_ts = cluster_fields.sel(time=time)
 
 test_contour_ds = cluster_fields_ts
