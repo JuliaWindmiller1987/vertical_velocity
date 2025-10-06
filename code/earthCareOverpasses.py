@@ -9,18 +9,22 @@ meta = get_flight_segments()
 
 # %%
 
-segments = [
-    {**s, "platform_id": platform_id, "flight_id": flight_id}
+events = [
+    {**e, "platform_id": platform_id, "flight_id": flight_id}
     for platform_id, flights in meta.items()
     for flight_id, flight in flights.items()
-    for s in flight["segments"]
+    for e in flight["events"]
 ]
 # %%
 
-dates_ec_coordination = np.unique(
-    [s["start"].date() for s in segments if "ec_track" in s["kinds"]]
-)
+dates_ec_coordination = [e["time"] for e in events if "ec_underpass" in e["kinds"]]
 
-df = pd.DataFrame(dates_ec_coordination, columns=["date"])
+
+df = pd.DataFrame(
+    {
+        "date": [d.date() for d in dates_ec_coordination],
+        "time": [d.time() for d in dates_ec_coordination],
+    }
+)
 df.to_csv("./data/ecCoordinationDates.csv", index=False)
 # %%
